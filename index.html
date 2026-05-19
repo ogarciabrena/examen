@@ -4,84 +4,142 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OGB ExamSystem - Evaluación Digital Blindada</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ogbBg: '#0b0c0b',
+                        ogbSurface: '#141714',
+                        ogbCard: '#191d18',
+                        ogbAccent: '#7eb88a',
+                        ogbAccent2: '#5a9468',
+                        ogbGold: '#c9a84c',
+                        ogbText: '#dfe8dc',
+                        ogbMuted: '#6b7a68',
+                        ogbBorder: 'rgba(255,255,255,0.07)',
+                        ogbBorder2: 'rgba(255,255,255,0.13)'
+                    },
+                    fontFamily: {
+                        serif: ['Cormorant Garamond', 'serif'],
+                        sans: ['DM Sans', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
     <style>
+        /* Deshabilitar selección de texto */
         body {
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
+            background-color: #0b0c0b;
+            color: #dfe8dc;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 400;
         }
-        @media print {
-            body { display: none !important; }
+        
+        /* Efecto Glassmorphism Editorial */
+        .glass-card {
+            background: rgba(25, 29, 24, 0.65);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
         }
+
+        .border-seccion {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* Ocultar scrollbars estéticamente */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0c0b; }
+        ::-webkit-scrollbar-thumb { background: #191d18; border-radius: 3px; }
+
+        @media print { body { display: none !important; } }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+<body class="min-h-screen antialiased flex flex-col justify-between">
 
-    <div class="max-w-2xl mx-auto px-4 py-8">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl font-extrabold text-blue-600 tracking-tight">OGB ExamSystem</h1>
-            <p class="text-sm text-slate-500 mt-1">Plataforma de Evaluación Automatizada Blindada</p>
+    <div class="max-w-2xl w-full mx-auto px-4 py-12 flex-grow">
+        <header class="text-center mb-12 border-seccion pb-6">
+            <h1 class="font-serif text-5xl text-ogbText tracking-tight font-bold">OGB <span class="text-ogbGold italic">ExamSystem</span></h1>
+            <p class="text-xs font-sans uppercase tracking-[0.2em] text-ogbMuted mt-2">Plataforma de Evaluación Automatizada Blindada</p>
         </header>
 
-        <div id="pantalla-registro" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h2 class="text-xl font-bold mb-4 text-slate-700">Datos del Alumno</h2>
+        <div id="pantalla-registro" class="glass-card p-8 rounded-none shadow-2xl space-y-6">
+            <h2 class="font-serif text-2xl text-ogbGold font-bold tracking-wide">Credenciales del Sustentante</h2>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Nombre Completo</label>
-                    <input type="text" id="nombre" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-blue-500" placeholder="Ej. Juan Pérez">
+                    <label class="block text-xs font-sans uppercase tracking-wider text-ogbMuted mb-2 font-medium">Nombre Completo</label>
+                    <input type="text" id="nombre" class="w-full bg-ogbSurface border border-ogbBorder text-ogbText px-4 py-3 rounded-[2px] focus:outline-none focus:border-ogbAccent font-light text-sm transition-colors" placeholder="Ej. Juan Pérez">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">Matrícula / ID</label>
-                    <input type="text" id="matricula" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-blue-500" placeholder="Ej. 20261023">
+                    <label class="block text-xs font-sans uppercase tracking-wider text-ogbMuted mb-2 font-medium">Matrícula / ID</label>
+                    <input type="text" id="matricula" class="w-full bg-ogbSurface border border-ogbBorder text-ogbText px-4 py-3 rounded-[2px] focus:outline-none focus:border-ogbAccent font-light text-sm transition-colors" placeholder="Ej. 20261023">
                 </div>
-                <button onclick="comenzarExamen()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-blue-100">
+                <button onclick="comenzarExamen()" class="w-full mt-2 bg-ogbAccent hover:bg-ogbAccent2 text-ogbBg font-sans font-medium text-xs uppercase tracking-widest py-4 rounded-[2px] transition-all duration-300 shadow-lg cursor-pointer">
                     Iniciar Evaluación
                 </button>
             </div>
         </div>
 
-        <div id="pantalla-examen" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative">
-            <div class="flex justify-between items-center mb-4 text-xs font-semibold text-amber-600 bg-amber-50 p-2 rounded-lg">
-                <span>⚠️ Entorno Seguro Activo (Se recomienda usar Celular/Tableta)</span>
-                <span id="contador-trampas" class="text-red-600 font-bold">Desvío de atención: 0</span>
+        <div id="pantalla-examen" class="hidden space-y-6">
+            <div class="flex justify-between items-center text-[11px] font-mono text-ogbAccent bg-ogbSurface/80 p-3 border border-ogbBorder rounded-none">
+                <span class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-ogbAccent animate-ping"></span> 
+                    ENTORNO SEGURO ACTIVO [MOBILE_PREFERENCE]
+                </span>
+                <span id="contador-trampas" class="text-ogbGold font-bold uppercase tracking-wider">Alertas: 0</span>
             </div>
 
             <div id="quiz-container" class="space-y-6">
-                <p class="text-center text-slate-400 py-8 animate-pulse">Cargando reactivos de forma segura...</p>
+                <p class="text-center font-serif text-lg text-ogbMuted py-12 animate-pulse">Sincronizando banco de reactivos encriptados...</p>
             </div>
 
-            <button onclick="enviarExamen()" class="w-full mt-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-emerald-100">
+            <button onclick="enviarExamen()" class="w-full bg-ogbGold hover:bg-amber-600 text-ogbBg font-sans font-medium text-xs uppercase tracking-widest py-4 rounded-[2px] transition-all duration-300 shadow-md cursor-pointer">
                 Finalizar y Enviar Examen
             </button>
         </div>
 
-        <div id="pantalla-resultado" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-            <div class="text-center space-y-2">
-                <div class="inline-flex p-3 bg-emerald-50 text-emerald-600 rounded-full text-3xl mb-2">✓</div>
-                <h2 class="text-2xl font-bold text-slate-700">¡Examen Enviado con Éxito!</h2>
-                <p class="text-slate-500 text-sm">Las respuestas han sido congeladas y registradas en el servidor del docente.</p>
+        <div id="pantalla-resultado" class="hidden glass-card p-8 rounded-none text-center space-y-8">
+            <div class="space-y-2">
+                <div class="font-serif text-4xl text-ogbAccent">✓</div>
+                <h2 class="font-serif text-3xl text-ogbText font-bold">Evaluación Concluida</h2>
+                <p class="text-xs text-ogbMuted max-w-md mx-auto font-light">Las respuestas fueron procesadas y estampadas bajo firma telemétrica en la base del docente.</p>
             </div>
 
-            <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-center max-w-sm mx-auto">
-                <div>
-                    <span class="text-xs text-slate-400 font-bold uppercase block">Calificación</span>
-                    <span id="nota-final" class="text-3xl font-black text-blue-600">--</span>
+            <div class="grid grid-cols-2 gap-px bg-ogbBorder max-w-sm mx-auto border border-ogbBorder">
+                <div class="bg-ogbSurface py-4">
+                    <span class="text-[10px] text-ogbMuted font-sans uppercase tracking-wider block mb-1">Nota Final</span>
+                    <span id="nota-final" class="font-serif text-4xl font-bold text-ogbGold">--</span>
                 </div>
-                <div>
-                    <span class="text-xs text-slate-400 font-bold uppercase block">Aciertos</span>
-                    <span id="aciertos-final" class="text-3xl font-black text-emerald-600">--</span>
+                <div class="bg-ogbSurface py-4">
+                    <span class="text-[10px] text-ogbMuted font-sans uppercase tracking-wider block mb-1">Aciertos</span>
+                    <span id="aciertos-final" class="font-serif text-4xl font-bold text-ogbAccent">--</span>
                 </div>
             </div>
 
-            <div class="space-y-4 pt-4 border-t border-slate-100">
-                <h3 class="text-lg font-bold text-slate-700 mb-2">Resumen de tu Evaluación:</h3>
-                <div id="resumen-alumno-container" class="space-y-3 max-h-96 overflow-y-auto pr-1"></div>
+            <div class="space-y-4 pt-6 border-t border-ogbBorder text-left">
+                <h3 class="font-serif text-xl text-ogbText font-bold tracking-wide">Resultados del Análisis:</h3>
+                <div id="resumen-alumno-container" class="space-y-3 max-h-80 overflow-y-auto pr-1"></div>
             </div>
         </div>
     </div>
+
+    <footer class="text-center py-6 border-t border-ogbBorder w-full mt-auto">
+        <p class="text-[10px] font-sans uppercase tracking-[0.3em] text-ogbMuted">Core Engine developed by <span class="text-ogbText font-medium">OGB</span></p>
+    </footer>
 
     <script>
         const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyZQ6JKRpFA4bCTWHHLlItyd39YbAHWkJOP5O984ezLudWMn-u0TmFeRZvCmgJOvVpA/exec";
@@ -98,8 +156,8 @@
                 const marcaTiempoFalta = new Date().toLocaleTimeString('es-MX');
                 historialTrampas.push(`Falta a las ${marcaTiempoFalta}`);
                 
-                document.getElementById("contador-trampas").innerText = `Desvío de atención: ${contadorTrampas}`;
-                alert("¡ALERTA DE SEGURIDAD INTERNA!\nSe detectó salida de ventana, Alt+Tab o intento de captura de pantalla.\nEsta incidencia ha sido guardada en la hoja del profesor.");
+                document.getElementById("contador-trampas").innerText = `Alertas: ${contadorTrampas}`;
+                alert("[ALERTA DE SISTEMA OGB]\nSe detectó una pérdida de foco de la ventana (Alt+Tab, notificación o captura).\nEste evento ha sido registrado en la bitácora del servidor.");
             }
         }
 
@@ -119,7 +177,7 @@
 
         async function obtenerMetadatos() {
             const agente = navigator.userAgent;
-            let ipPublica = "Bloqueada/Filtro DNS Local";
+            let ipPublica = "Filtro DNS Local";
             try {
                 let res = await fetch('https://ipapi.co/json/');
                 let datosIp = await res.json();
@@ -133,12 +191,11 @@
             datosAlumno.matricula = document.getElementById("matricula").value.trim();
 
             if (!datosAlumno.nombre || !datosAlumno.matricula) {
-                alert("Por favor introduce tu Nombre y Matrícula para continuar.");
+                alert("Identificación requerida para iniciar el examen.");
                 return;
             }
 
             datosAlumno.horaInicio = new Date().toLocaleTimeString('es-MX');
-
             await obtenerMetadatos();
 
             document.getElementById("pantalla-registro").classList.add("hidden");
@@ -153,7 +210,7 @@
                 bancoPreguntas = await response.json();
                 renderizarPreguntas();
             } catch (error) {
-                alert("Fallo de comunicación con la API de reactivos.");
+                alert("Error de comunicación de red con el API.");
             }
         }
 
@@ -162,18 +219,18 @@
             container.innerHTML = "";
             bancoPreguntas.forEach((item, index) => {
                 const div = document.createElement("div");
-                div.className = "p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3";
+                div.className = "glass-card p-5 rounded-none space-y-4";
                 div.innerHTML = `
-                    <p class="font-semibold text-slate-700 select-none">${index + 1}. ${item.pregunta}</p>
-                    <div class="grid gap-2 text-sm">
-                        <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors select-none">
-                            <input type="radio" name="p-${index}" value="A"> <span>${item.opciones.A}</span>
+                    <p class="font-serif text-lg text-ogbText select-none font-bold">${index + 1}. ${item.pregunta}</p>
+                    <div class="grid gap-2.5 text-xs font-sans tracking-wide">
+                        <label class="flex items-center gap-3 p-3 bg-ogbSurface/40 border border-ogbBorder rounded-none cursor-pointer hover:border-ogbAccent hover:bg-ogbSurface/80 transition-all text-ogbText/90 select-none">
+                            <input type="radio" name="p-${index}" value="A" class="accent-ogbAccent"> <span>${item.opciones.A}</span>
                         </label>
-                        <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors select-none">
-                            <input type="radio" name="p-${index}" value="B"> <span>${item.opciones.B}</span>
+                        <label class="flex items-center gap-3 p-3 bg-ogbSurface/40 border border-ogbBorder rounded-none cursor-pointer hover:border-ogbAccent hover:bg-ogbSurface/80 transition-all text-ogbText/90 select-none">
+                            <input type="radio" name="p-${index}" value="B" class="accent-ogbAccent"> <span>${item.opciones.B}</span>
                         </label>
-                        <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors select-none">
-                            <input type="radio" name="p-${index}" value="C"> <span>${item.opciones.C}</span>
+                        <label class="flex items-center gap-3 p-3 bg-ogbSurface/40 border border-ogbBorder rounded-none cursor-pointer hover:border-ogbAccent hover:bg-ogbSurface/80 transition-all text-ogbText/90 select-none">
+                            <input type="radio" name="p-${index}" value="C" class="accent-ogbAccent"> <span>${item.opciones.C}</span>
                         </label>
                     </div>
                 `;
@@ -182,7 +239,7 @@
         }
 
         async function enviarExamen() {
-            if (!confirm("¿Deseas dar por terminada la evaluación y enviar tus respuestas?")) return;
+            if (!confirm("¿Dar por terminada la evaluación? Las respuestas se congelarán.")) return;
 
             datosAlumno.horaFinal = new Date().toLocaleTimeString('es-MX');
             datosAlumno.logTrampas = historialTrampas.length > 0 ? historialTrampas.join(" | ") : "Sin incidencias";
@@ -196,7 +253,7 @@
                 });
             });
 
-            document.getElementById("pantalla-examen").innerHTML = `<p class="text-center text-blue-600 py-12 animate-bounce font-bold text-lg">Inyectando y procesando respuestas...</p>`;
+            document.getElementById("pantalla-examen").innerHTML = `<p class="text-center font-serif text-ogbAccent py-12 animate-pulse text-lg">Escribiendo registros en el libro maestro del docente...</p>`;
 
             const payload = {
                 alumno: datosAlumno.nombre,
@@ -220,13 +277,13 @@
                 if (resultado.status === "success") {
                     mostrarPantallaResultados(resultado);
                 } else {
-                    alert("El servidor reportó un problema al guardar tus datos.");
+                    alert("El servidor rechazó el guardado automático.");
                 }
 
             } catch (error) {
                 document.getElementById("pantalla-examen").classList.add("hidden");
                 document.getElementById("pantalla-resultado").classList.remove("hidden");
-                document.getElementById("resumen-alumno-container").innerHTML = `<p class="text-xs text-slate-400 italic">Resumen detallado no disponible en este dispositivo. Tu calificación fue guardada directamente en la base de datos del docente.</p>`;
+                document.getElementById("resumen-alumno-container").innerHTML = `<p class="text-xs text-ogbMuted italic">Resumen detallado fuera de línea. Tus respuestas fueron almacenadas de forma directa y segura en la hoja del docente.</p>`;
                 if (document.exitFullscreen) document.exitFullscreen();
             }
         }
@@ -243,12 +300,13 @@
 
             datos.detalles.forEach((item, index) => {
                 const divCard = document.createElement("div");
-                divCard.className = `p-3 rounded-xl border text-sm ${item.estatus ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50/50 border-red-100'}`;
+                const colorBorde = item.estatus ? 'border-ogbAccent/30 bg-ogbSurface/30' : 'border-red-900/40 bg-red-950/10';
                 
+                divCard.className = `p-4 rounded-none border text-xs font-sans tracking-wide ${colorBorde}`;
                 divCard.innerHTML = `
-                    <p class="font-bold text-slate-700 mb-1">${index + 1}. ${item.pregunta}</p>
-                    <p class="text-xs text-slate-600">Tu respuesta: <span class="font-mono font-bold ${item.estatus ? 'text-emerald-600' : 'text-red-600'}">${item.tuRespuesta}</span></p>
-                    ${!item.estatus ? `<p class="text-xs text-slate-500">Respuesta correcta: <span class="font-mono font-bold text-emerald-600">${item.correcta}</span></p>` : ''}
+                    <p class="font-serif text-sm text-ogbText font-bold mb-1.5">${index + 1}. ${item.pregunta}</p>
+                    <p class="text-ogbMuted font-light">Tu selección: <span class="font-mono font-medium ${item.estatus ? 'text-ogbAccent' : 'text-red-400'}">${item.tuRespuesta}</span></p>
+                    ${!item.estatus ? `<p class="text-ogbMuted font-light mt-0.5">Clave correcta: <span class="font-mono font-medium text-ogbGold">${item.correcta}</span></p>` : ''}
                 `;
                 resumenContainer.appendChild(divCard);
             });
