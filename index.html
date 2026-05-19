@@ -68,7 +68,7 @@
     </div>
 
     <script>
-        // 🚨 CONFIGURACIÓN: PEGA TU URL DE GOOGLE APPS SCRIPT AQUÍ ABAJO
+        // 🚨 CONFIGURACIÓN: REEMPLAZA ESTA DIRECCIÓN POR TU URL DE GOOGLE APPS SCRIPT REAL
         const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyZQ6JKRpFA4bCTWHHLlItyd39YbAHWkJOP5O984ezLudWMn-u0TmFeRZvCmgJOvVpA/exec";
 
         let bancoPreguntas = [];
@@ -80,7 +80,7 @@
         window.onload = function() {
             if (localStorage.getItem("ogb_examen_activo") === "true") {
                 datosAlumno.reingresoSospechoso = true;
-                // Penalizar automáticamente con +2 faltas inmediatas por intentar recargar la app
+                // Penalizar con +2 faltas si intentan refrescar o recargar la página
                 contadorTrampas = parseInt(localStorage.getItem("ogb_trampas") || "0") + 2;
                 historialTrampas = JSON.parse(localStorage.getItem("ogb_historial_trampas") || "[]");
                 historialTrampas.push(`Refrescó la ventana a las ${new Date().toLocaleTimeString('es-MX')}`);
@@ -91,7 +91,7 @@
             }
         }
 
-        // SISTEMA DE MONITOREO PERIMETRAL (FALTAS)
+        // SISTEMA DE MONITOREO PERIMETRAL (REGISTRO DE INCIDENCIAS)
         function registrarFalta() {
             const examenActivo = !document.getElementById("pantalla-examen").classList.contains("hidden");
             if (examenActivo) {
@@ -99,7 +99,7 @@
                 const marcaTiempoFalta = new Date().toLocaleTimeString('es-MX');
                 historialTrampas.push(`Falta a las ${marcaTiempoFalta}`);
                 
-                // Guardado atómico inmediato en localstorage para mitigar pérdidas por caídas bruscas
+                // Persistencia inmediata local
                 localStorage.setItem("ogb_trampas", contadorTrampas);
                 localStorage.setItem("ogb_historial_trampas", JSON.stringify(historialTrampas));
                 
@@ -108,7 +108,7 @@
             }
         }
 
-        // Eventos centinelas de pérdida de foco
+        // Eventos de control perimetral
         document.addEventListener("visibilitychange", () => { if (document.hidden) registrarFalta(); });
         window.onblur = function() { registrarFalta(); };
         document.addEventListener('contextmenu', e => e.preventDefault()); // Bloqueo click derecho
@@ -116,7 +116,7 @@
             if (e.ctrlKey || e.metaKey || ['F12', 'PrintScreen'].includes(e.key)) { e.preventDefault(); registrarFalta(); }
         });
 
-        // CONTROLADOR DE INICIO Y CONSUMO DE DATOS
+        // CONTROLADOR DE INICIO Y DESCARGA SEGURA
         async function comenzarExamen(vieneDeRefresco = false) {
             datosAlumno.nombre = document.getElementById("nombre").value.trim();
             datosAlumno.matricula = document.getElementById("matricula").value.trim();
@@ -135,7 +135,7 @@
                 datosAlumno.horaInicio = localStorage.getItem("ogb_hora_inicio") || new Date().toLocaleTimeString('es-MX');
             }
 
-            // AVISO SOLICITADO: Bloqueo visual preventivo de carga inicial
+            // Aviso visual preventivo durante la petición de red
             document.getElementById("pantalla-registro").innerHTML = `
                 <div class="text-center py-12 space-y-3">
                     <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -145,7 +145,6 @@
             `;
 
             try {
-                // Si viene de refresco reutiliza las preguntas cacheadas para conservar el examen intacto
                 if (vieneDeRefresco && localStorage.getItem("ogb_banco")) {
                     bancoPreguntas = JSON.parse(localStorage.getItem("ogb_banco"));
                 } else {
@@ -154,12 +153,14 @@
                     localStorage.setItem("ogb_banco", JSON.stringify(bancoPreguntas));
                 }
                 
-                // Conmutar vistas una vez finalizada la descarga de red
                 document.getElementById("pantalla-registro").classList.add("hidden");
                 document.getElementById("pantalla-examen").classList.remove("hidden");
                 document.getElementById("contador-trampas").innerText = `Desvío de atención: ${contadorTrampas}`;
                 
-                try { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); } catch (e) {}
+                // 🍏 PARCHE APPLE: Solo invocar requestFullscreen si está soportado nativamente (Previene cuelgues en iPhone)
+                if (document.documentElement.requestFullscreen) {
+                    try { await document.documentElement.requestFullscreen(); } catch (e) {}
+                }
                 
                 renderizarPreguntas();
             } catch (error) { 
@@ -167,7 +168,7 @@
             }
         }
 
-        // RENDERIZADO DINÁMICO HÍBRIDO (OPCIÓN MÚLTIPLE O ABIERTA)
+        // RENDERIZADOR HÍBRIDO (OPCIÓN MÚLTIPLE O ABIERTA)
         function renderizarPreguntas() {
             const container = document.getElementById("quiz-container");
             container.innerHTML = "";
@@ -183,12 +184,10 @@
                 
                 let htmlRespuestas = "";
                 if (item.tipo === "ABIERTA") {
-                    // Diseño para pregunta abierta (Input text plano sanitizado a mayúsculas)
                     htmlRespuestas = `
                         <input type="text" id="abierta-${index}" class="w-full px-4 py-2 bg-white rounded-lg border border-slate-200 focus:outline-blue-500 font-mono text-sm uppercase" placeholder="Escribe tu respuesta aquí...">
                     `;
                 } else {
-                    // Diseño para pregunta estructurada de opción múltiple con N cantidad de incisos
                     htmlRespuestas = `
                         <div class="grid gap-2 text-sm">
                             ${Object.keys(item.opciones).map(letra => `
@@ -209,7 +208,7 @@
             });
         }
 
-        // PROCESAMIENTO Y ENVÍO CON ARQUITECTURA DE RESCATE OFFLINE (RESILIENTE A CAÍDAS DE RED)
+        // PROCESAMIENTO Y TRANSMISIÓN CON ARQUITECTURA DE RESCATE (COMPATIBLE CON CORRECCIONES DE CONEXIÓN DE SAFARI/IOS)
         async function enviarExamen() {
             if (!confirm("¿Deseas enviar tus respuestas definitivas?")) return;
 
@@ -229,10 +228,10 @@
                 respuestasEnviadas.push({ id: item.id, pregunta: item.pregunta, respuesta: respuestaValor });
             });
 
-            // Respaldo inmediato de contingencia en almacenamiento local antes del fetch
+            // Respaldo de datos local previo al envío por si colapsa la red
             localStorage.setItem("ogb_respuestas_respaldo", JSON.stringify(respuestasEnviadas));
 
-            // AVISO SOLICITADO: Estado visual de transmisión seguro ("Validando respuestas...")
+            // Aviso de transición visual ("Validando respuestas...")
             document.getElementById("pantalla-examen").innerHTML = `
                 <div id="status-envio-contenedor" class="text-center py-12 space-y-4">
                     <div id="spinner-envio" class="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -256,31 +255,35 @@
             };
 
             try {
-                let response = await fetch(URL_APPS_SCRIPT, { method: "POST", body: JSON.stringify(payload) });
+                // 🍏 PARCHE APPLE: Forzamos 'mode: "cors"' explícito para forzar a iOS a procesar la redirección interna de Google Apps Script
+                let response = await fetch(URL_APPS_SCRIPT, { 
+                    method: "POST", 
+                    mode: "cors",
+                    body: JSON.stringify(payload) 
+                });
                 let resultado = await response.json();
                 if (resultado.status === "success") {
-                    // Éxito: Se limpia la memoria caché local por completo y avanza a resultados
                     localStorage.clear();
                     mostrarPantallaResultados(resultado);
                 } else {
                     throw new Error();
                 }
             } catch (error) {
-                // MODO RECOVERY ACTIVADO: Falla de red detectada, se congelan los datos de forma segura
+                // MODO RECOVERY ACTIVADO (iOS/Sin red)
                 document.getElementById("spinner-envio").classList.add("hidden");
                 document.getElementById("texto-envio").innerHTML = `
-                    <span class="text-red-600 block text-lg">⚠️ Error de Conexión (Sin Internet)</span>
-                    <span class="text-xs text-slate-500 font-normal block mt-1">Tus respuestas siguen almacenadas de forma segura en este dispositivo. No cierres la pestaña. Restablece tu red y presiona reintentar.</span>
+                    <span class="text-red-600 block text-lg">⚠️ Servidor en Validación</span>
+                    <span class="text-xs text-slate-500 font-normal block mt-1">Tus respuestas siguen almacenadas de forma segura en este dispositivo. Presiona el botón de abajo para forzar la sincronización directa.</span>
                 `;
                 document.getElementById("texto-envio").classList.remove("animate-pulse");
                 document.getElementById("btn-reintentar").classList.remove("hidden");
             }
         }
 
-        // REINTENTO FORZADO DESDE BUFFER DE CONTINGENCIA LOCAL
+        // FORZAR RESINCRO DESDE EL RECOVERY BUFFER (CON ADAPTACIÓN PARA REDIRECCIONES SAFARI)
         async function reintentarEnvioForzado() {
             document.getElementById("spinner-envio").classList.remove("hidden");
-            document.getElementById("texto-envio").innerHTML = "Reintentando enviar respuestas...";
+            document.getElementById("texto-envio").innerHTML = "Sincronizando con el servidor...";
             document.getElementById("texto-envio").classList.add("animate-pulse");
             document.getElementById("btn-reintentar").classList.add("hidden");
 
@@ -299,7 +302,11 @@
             };
 
             try {
-                let response = await fetch(URL_APPS_SCRIPT, { method: "POST", body: JSON.stringify(payload) });
+                let response = await fetch(URL_APPS_SCRIPT, { 
+                    method: "POST", 
+                    mode: "cors",
+                    body: JSON.stringify(payload) 
+                });
                 let resultado = await response.json();
                 if (resultado.status === "success") {
                     localStorage.clear();
@@ -308,15 +315,14 @@
                     throw new Error();
                 }
             } catch (e) {
-                // Mantiene el bucle de protección si la red sigue caída
                 document.getElementById("spinner-envio").classList.add("hidden");
-                document.getElementById("texto-envio").innerHTML = `<span class="text-red-600 block text-lg">⚠️ El servidor sigue inaccesible</span><span class="text-xs text-slate-500 font-normal block mt-1">Revisa tus cables o conexión de datos nuevamente.</span>`;
+                document.getElementById("texto-envio").innerHTML = `<span class="text-red-600 block text-lg">⚠️ Sincronización pendiente</span><span class="text-xs text-slate-500 font-normal block mt-1">Verifica tu conexión y presiona el botón de nuevo.</span>`;
                 document.getElementById("texto-envio").classList.remove("animate-pulse");
                 document.getElementById("btn-reintentar").classList.remove("hidden");
             }
         }
 
-        // DESPLIEGUE FINAL DE NOTAS EN PANTALLA
+        // DESPLIEGUE FINAL DE RESULTADOS EN RECUADROS ESTILIZADOS
         function mostrarPantallaResultados(datos) {
             document.getElementById("pantalla-examen").classList.add("hidden");
             document.getElementById("pantalla-resultado").classList.remove("hidden");
@@ -331,7 +337,10 @@
                 divCard.innerHTML = `<p class="font-bold text-slate-700 mb-1">${index + 1}. ${item.pregunta}</p><p class="text-xs">Tu respuesta: <span class="font-bold">${item.tuRespuesta}</span></p>`;
                 resumenContainer.appendChild(divCard);
             });
-            if (document.exitFullscreen) document.exitFullscreen();
+            
+            if (document.exitFullscreen) {
+                try { document.exitFullscreen(); } catch (e) {}
+            }
         }
     </script>
 </body>
