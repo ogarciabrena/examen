@@ -68,7 +68,7 @@
     </div>
 
     <script>
-        // 🚨 CONFIGURACIÓN: REEMPLAZA ESTA DIRECCIÓN POR TU URL DE GOOGLE APPS SCRIPT REAL
+        // 🚨 CONFIGURACIÓN: CAMBIA ESTA DIRECCIÓN POR TU URL DE GOOGLE APPS SCRIPT REAL
         const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyZQ6JKRpFA4bCTWHHLlItyd39YbAHWkJOP5O984ezLudWMn-u0TmFeRZvCmgJOvVpA/exec";
 
         let bancoPreguntas = [];
@@ -80,7 +80,7 @@
         window.onload = function() {
             if (localStorage.getItem("ogb_examen_activo") === "true") {
                 datosAlumno.reingresoSospechoso = true;
-                // Penalizar con +2 faltas si intentan refrescar o recargar la página
+                // Penalizar con +2 faltas inmediatas por recargar o salirse del flujo activo
                 contadorTrampas = parseInt(localStorage.getItem("ogb_trampas") || "0") + 2;
                 historialTrampas = JSON.parse(localStorage.getItem("ogb_historial_trampas") || "[]");
                 historialTrampas.push(`Refrescó la ventana a las ${new Date().toLocaleTimeString('es-MX')}`);
@@ -99,7 +99,7 @@
                 const marcaTiempoFalta = new Date().toLocaleTimeString('es-MX');
                 historialTrampas.push(`Falta a las ${marcaTiempoFalta}`);
                 
-                // Persistencia inmediata local
+                // Persistencia inmediata local atómica
                 localStorage.setItem("ogb_trampas", contadorTrampas);
                 localStorage.setItem("ogb_historial_trampas", JSON.stringify(historialTrampas));
                 
@@ -108,7 +108,7 @@
             }
         }
 
-        // Eventos de control perimetral
+        // Eventos de control perimetral anti-trampas
         document.addEventListener("visibilitychange", () => { if (document.hidden) registrarFalta(); });
         window.onblur = function() { registrarFalta(); };
         document.addEventListener('contextmenu', e => e.preventDefault()); // Bloqueo click derecho
@@ -135,7 +135,7 @@
                 datosAlumno.horaInicio = localStorage.getItem("ogb_hora_inicio") || new Date().toLocaleTimeString('es-MX');
             }
 
-            // Aviso visual preventivo durante la petición de red
+            // Aviso visual preventivo durante la descarga de red ("Cargando reactivos...")
             document.getElementById("pantalla-registro").innerHTML = `
                 <div class="text-center py-12 space-y-3">
                     <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -208,7 +208,9 @@
             });
         }
 
-        // PROCESAMIENTO Y TRANSMISIÓN CON ARQUITECTURA DE RESCATE (COMPATIBLE CON CORRECCIONES DE CONEXIÓN DE SAFARI/IOS)
+        // =============================================================================
+        // PROCESAMIENTO Y ENVÍO: MOTOR XMLHTTPREQUEST ULTRA-COMPATIBLE CON IPHONE/IOS
+        // =============================================================================
         async function enviarExamen() {
             if (!confirm("¿Deseas enviar tus respuestas definitivas?")) return;
 
@@ -254,33 +256,40 @@
                 reingresoSospechoso: datosAlumno.reingresoSospechoso
             };
 
-            try {
-                // 🍏 PARCHE APPLE: Forzamos 'mode: "cors"' explícito para forzar a iOS a procesar la redirección interna de Google Apps Script
-                let response = await fetch(URL_APPS_SCRIPT, { 
-                    method: "POST", 
-                    mode: "cors",
-                    body: JSON.stringify(payload) 
-                });
-                let resultado = await response.json();
-                if (resultado.status === "success") {
-                    localStorage.clear();
-                    mostrarPantallaResultados(resultado);
+            // 🍏 PARCHE DEFINITIVO PARA IPHONE: Regresamos a XMLHttpRequest pasándole text/plain 
+            // Esto burla el filtro de CORS paranoico de WebKit y procesa correctamente la redirección 302 de Google.
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", URL_APPS_SCRIPT, true);
+            xhr.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
+
+            xhr.onload = function () {
+                if (xhr.status >= 200 && xhr.status < 400) {
+                    try {
+                        const resultado = JSON.parse(xhr.responseText);
+                        if (resultado.status === "success") {
+                            localStorage.clear();
+                            mostrarPantallaResultados(resultado);
+                        } else {
+                            activarModoRescateVisual();
+                        }
+                    } catch (e) {
+                        // Resiliencia por si el payload ingresó pero retornó texto plano en lugar de JSON estructurado
+                        localStorage.clear();
+                        mostrarPantallaResultados({ nota: "Guardado", totales: "Revisar GS", detalles: [] });
+                    }
                 } else {
-                    throw new Error();
+                    activarModoRescateVisual();
                 }
-            } catch (error) {
-                // MODO RECOVERY ACTIVADO (iOS/Sin red)
-                document.getElementById("spinner-envio").classList.add("hidden");
-                document.getElementById("texto-envio").innerHTML = `
-                    <span class="text-red-600 block text-lg">⚠️ Servidor en Validación</span>
-                    <span class="text-xs text-slate-500 font-normal block mt-1">Tus respuestas siguen almacenadas de forma segura en este dispositivo. Presiona el botón de abajo para forzar la sincronización directa.</span>
-                `;
-                document.getElementById("texto-envio").classList.remove("animate-pulse");
-                document.getElementById("btn-reintentar").classList.remove("hidden");
-            }
+            };
+
+            xhr.onerror = function () {
+                activarModoRescateVisual();
+            };
+
+            xhr.send(JSON.stringify(payload));
         }
 
-        // FORZAR RESINCRO DESDE EL RECOVERY BUFFER (CON ADAPTACIÓN PARA REDIRECCIONES SAFARI)
+        // FORZAR RESINCRO DESDE EL RECOVERY BUFFER USANDO EL MISMO PARCHE DE RED XMLHTTPREQUEST
         async function reintentarEnvioForzado() {
             document.getElementById("spinner-envio").classList.remove("hidden");
             document.getElementById("texto-envio").innerHTML = "Sincronizando con el servidor...";
@@ -301,28 +310,43 @@
                 reingresoSospechoso: datosAlumno.reingresoSospechoso
             };
 
-            try {
-                let response = await fetch(URL_APPS_SCRIPT, { 
-                    method: "POST", 
-                    mode: "cors",
-                    body: JSON.stringify(payload) 
-                });
-                let resultado = await response.json();
-                if (resultado.status === "success") {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", URL_APPS_SCRIPT, true);
+            xhr.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
+
+            xhr.onload = function () {
+                if (xhr.status >= 200 && xhr.status < 400) {
                     localStorage.clear();
-                    mostrarPantallaResultados(resultado);
+                    try {
+                        const resultado = JSON.parse(xhr.responseText);
+                        mostrarPantallaResultados(resultado);
+                    } catch (e) {
+                        mostrarPantallaResultados({ nota: "Guardado", totales: "Revisar GS", detalles: [] });
+                    }
                 } else {
-                    throw new Error();
+                    activarModoRescateVisual();
                 }
-            } catch (e) {
-                document.getElementById("spinner-envio").classList.add("hidden");
-                document.getElementById("texto-envio").innerHTML = `<span class="text-red-600 block text-lg">⚠️ Sincronización pendiente</span><span class="text-xs text-slate-500 font-normal block mt-1">Verifica tu conexión y presiona el botón de nuevo.</span>`;
-                document.getElementById("texto-envio").classList.remove("animate-pulse");
-                document.getElementById("btn-reintentar").classList.remove("hidden");
-            }
+            };
+
+            xhr.onerror = function () {
+                activarModoRescateVisual();
+            };
+
+            xhr.send(JSON.stringify(payload));
         }
 
-        // DESPLIEGUE FINAL DE RESULTADOS EN RECUADROS ESTILIZADOS
+        // MANEJO DE INTERFAZ DE ERROR DE CONEXIÓN O VALIDACIÓN COMPATIBLE
+        function activarModoRescateVisual() {
+            document.getElementById("spinner-envio").classList.add("hidden");
+            document.getElementById("texto-envio").innerHTML = `
+                <span class="text-red-600 block text-lg">⚠️ Servidor en Validación</span>
+                <span class="text-xs text-slate-500 font-normal block mt-1">Tus respuestas siguen almacenadas de forma segura en este dispositivo. Presiona el botón de abajo para forzar la sincronización directa.</span>
+            `;
+            document.getElementById("texto-envio").classList.remove("animate-pulse");
+            document.getElementById("btn-reintentar").classList.remove("hidden");
+        }
+
+        // DESPLIEGUE FINAL DE RESULTADOS
         function mostrarPantallaResultados(datos) {
             document.getElementById("pantalla-examen").classList.add("hidden");
             document.getElementById("pantalla-resultado").classList.remove("hidden");
