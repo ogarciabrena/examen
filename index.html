@@ -88,7 +88,7 @@
 
         let bancoPreguntas = [];
         let contadorTrampas = 0;
-        let historialTrampas = []; // Aquí acumulamos las marcas de tiempo de las faltas
+        let historialTrampas = [];
         let datosAlumno = { nombre: "", matricula: "", metadata: "", horaInicio: "", horaFinal: "", logTrampas: "" };
 
         function registrarFalta() {
@@ -96,7 +96,7 @@
             if (examenActivo) {
                 contadorTrampas++;
                 const marcaTiempoFalta = new Date().toLocaleTimeString('es-MX');
-                historialTrampas.push(`Falta a las ${marcaTiempoFalta}`); // Se añade el incidente al array
+                historialTrampas.push(`Falta a las ${marcaTiempoFalta}`);
                 
                 document.getElementById("contador-trampas").innerText = `Desvío de atención: ${contadorTrampas}`;
                 alert("¡ALERTA DE SEGURIDAD INTERNA!\nSe detectó salida de ventana, Alt+Tab o intento de captura de pantalla.\nEsta incidencia ha sido guardada en la hoja del profesor.");
@@ -137,7 +137,6 @@
                 return;
             }
 
-            // 🕒 CAPTURA HORA DE INICIO
             datosAlumno.horaInicio = new Date().toLocaleTimeString('es-MX');
 
             await obtenerMetadatos();
@@ -185,10 +184,7 @@
         async function enviarExamen() {
             if (!confirm("¿Deseas dar por terminada la evaluación y enviar tus respuestas?")) return;
 
-            // 🕒 CAPTURA HORA FINAL
             datosAlumno.horaFinal = new Date().toLocaleTimeString('es-MX');
-            
-            // 📝 CONSOLIDACIÓN DEL LOG DE TRAMPAS
             datosAlumno.logTrampas = historialTrampas.length > 0 ? historialTrampas.join(" | ") : "Sin incidencias";
 
             let respuestasEnviadas = [];
@@ -228,7 +224,6 @@
                 }
 
             } catch (error) {
-                // Fallback por si hay restricciones estrictas de red leyendo respuestas JSON remotas
                 document.getElementById("pantalla-examen").classList.add("hidden");
                 document.getElementById("pantalla-resultado").classList.remove("hidden");
                 document.getElementById("resumen-alumno-container").innerHTML = `<p class="text-xs text-slate-400 italic">Resumen detallado no disponible en este dispositivo. Tu calificación fue guardada directamente en la base de datos del docente.</p>`;
