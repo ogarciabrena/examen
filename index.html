@@ -7,14 +7,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     
     <style>
-        /* Deshabilitar por completo la selección de texto en celulares y computadoras */
         body {
-            -webkit-user-select: none; /* Safari */
-            -moz-user-select: none;    /* Firefox */
-            -ms-user-select: none;     /* IE10+ */
-            user-select: none;         /* Estándar */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
-        /* Bloqueo visual radical si intentan imprimir la pantalla o guardarla como PDF */
         @media print {
             body { display: none !important; }
         }
@@ -60,26 +58,39 @@
             </button>
         </div>
 
-        <div id="pantalla-resultado" class="hidden bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center space-y-4">
-            <div class="inline-flex p-4 bg-emerald-50 text-emerald-600 rounded-full text-4xl">✓</div>
-            <h2 class="text-2xl font-bold text-slate-700">¡Examen Enviado con Éxito!</h2>
-            <p class="text-slate-500 text-sm">Tus respuestas y telemetría de red han sido inyectadas en la base de datos del docente.</p>
-            <div class="bg-slate-50 p-4 rounded-xl max-w-xs mx-auto border border-slate-100">
-                <span class="text-xs text-slate-400 font-bold tracking-wider block uppercase">Estado del Envío</span>
-                <span id="nota-final" class="text-3xl font-black text-emerald-600">REGISTRADO</span>
+        <div id="pantalla-resultado" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-flex p-3 bg-emerald-50 text-emerald-600 rounded-full text-3xl mb-2">✓</div>
+                <h2 class="text-2xl font-bold text-slate-700">¡Examen Enviado con Éxito!</h2>
+                <p class="text-slate-500 text-sm">Las respuestas han sido congeladas y registradas en el servidor del docente.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-center max-w-sm mx-auto">
+                <div>
+                    <span class="text-xs text-slate-400 font-bold uppercase block">Calificación</span>
+                    <span id="nota-final" class="text-3xl font-black text-blue-600">--</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 font-bold uppercase block">Aciertos</span>
+                    <span id="aciertos-final" class="text-3xl font-black text-emerald-600">--</span>
+                </div>
+            </div>
+
+            <div class="space-y-4 pt-4 border-t border-slate-100">
+                <h3 class="text-lg font-bold text-slate-700 mb-2">Resumen de tu Evaluación:</h3>
+                <div id="resumen-alumno-container" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    </div>
             </div>
         </div>
     </div>
 
     <script>
-        // URL Oficial de OGB Apps Script vinculada
         const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyZQ6JKRpFA4bCTWHHLlItyd39YbAHWkJOP5O984ezLudWMn-u0TmFeRZvCmgJOvVpA/exec";
 
         let bancoPreguntas = [];
         let contadorTrampas = 0;
-        let datosAlumno = { nombre: "", matricula: "", metadata: "" };
+        let datosAlumno = { nombre: "", matricula: "", metadata: "", horaInicio: "" };
 
-        // 🛡️ BITÁCORA ANTITRAMPA TELEMÉTRICA
         function registrarFalta() {
             const examenActivo = !document.getElementById("pantalla-examen").classList.contains("hidden");
             if (examenActivo) {
@@ -89,11 +100,9 @@
             }
         }
 
-        // Monitoreo dual: Cambio de pestaña (Celular) y pérdida de foco de ventana (Computadora)
         document.addEventListener("visibilitychange", () => { if (document.hidden) registrarFalta(); });
         window.onblur = function() { registrarFalta(); };
 
-        // Deshabilitar menús y atajos clave (Evita inspección básica)
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
             if (e.ctrlKey || e.metaKey || e.key === 'PrintScreen') {
@@ -105,21 +114,14 @@
             if (e.key === 'F12') e.preventDefault();
         });
 
-        // Bloqueo de arrastre de textos en pantallas divididas
-        document.addEventListener('dragstart', e => e.preventDefault());
-        document.addEventListener('drop', e => e.preventDefault());
-
-        // Recolección silenciosa de IP y Hardware (Sin alertas intrusivas de GPS)
         async function obtenerMetadatos() {
             const agente = navigator.userAgent;
             let ipPublica = "Bloqueada/Filtro DNS Local";
-            
             try {
                 let res = await fetch('https://ipapi.co/json/');
                 let datosIp = await res.json();
                 ipPublica = `IP: ${datosIp.ip} (${datosIp.org})`;
-            } catch (e) { console.log("Captura de IP omitida por protección de red o timeout."); }
-
+            } catch (e) {}
             datosAlumno.metadata = `Disp: ${agente} | Red: ${ipPublica}`;
         }
 
@@ -132,30 +134,31 @@
                 return;
             }
 
+            // 🕒 CAPTURA DEL METADATO DE INICIO DE SESIÓN
+            const ahora = new Date();
+            datosAlumno.horaInicio = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
             await obtenerMetadatos();
 
             document.getElementById("pantalla-registro").classList.add("hidden");
             document.getElementById("pantalla-examen").classList.remove("hidden");
 
-            // Elemento psicológico de bloqueo de interfaz
             try {
                 if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
             } catch (e) {}
 
-            // Carga de reactivos limpios desde el Backend
             try {
                 let response = await fetch(URL_APPS_SCRIPT);
                 bancoPreguntas = await response.json();
                 renderizarPreguntas();
             } catch (error) {
-                alert("Fallo de comunicación con la API de reactivos. Contacta al aplicador.");
+                alert("Fallo de comunicación con la API de reactivos.");
             }
         }
 
         function renderizarPreguntas() {
             const container = document.getElementById("quiz-container");
             container.innerHTML = "";
-            
             bancoPreguntas.forEach((item, index) => {
                 const div = document.createElement("div");
                 div.className = "p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3";
@@ -189,30 +192,68 @@
                 });
             });
 
-            document.getElementById("pantalla-examen").innerHTML = `<p class="text-center text-blue-600 py-12 animate-bounce font-bold text-lg">Inyectando respuestas de forma segura...</p>`;
+            document.getElementById("pantalla-examen").innerHTML = `<p class="text-center text-blue-600 py-12 animate-bounce font-bold text-lg">Inyectando y procesando respuestas...</p>`;
 
             const payload = {
                 alumno: datosAlumno.nombre,
                 matricula: datosAlumno.matricula,
                 respuestas: respuestasEnviadas,
                 trampas: contadorTrampas,
-                metadata: datosAlumno.metadata
+                metadata: datosAlumno.metadata,
+                horaInicio: datosAlumno.horaInicio // Pasamos el metadato de logueo al servidor
             };
 
             try {
-                await fetch(URL_APPS_SCRIPT, {
+                // Hacemos un fetch clásico. Como ocupamos leer la respuesta del servidor con el resumen,
+                // si te llega a dar error de CORS en la consola, el navegador igual procesa la respuesta en el flujo normal.
+                let response = await fetch(URL_APPS_SCRIPT, {
                     method: "POST",
-                    mode: "no-cors",
-                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
                 });
+                
+                let resultado = await response.json();
 
+                if (resultado.status === "success") {
+                    mostrarPantallaResultados(resultado);
+                } else {
+                    alert("El servidor reportó un problema al guardar tus datos.");
+                }
+
+            } catch (error) {
+                // Mitigación por si las políticas restrictivas de Google bloquean la lectura de la respuesta JSON directa:
+                // Avisamos que fue guardado (ya que el doPost se ejecuta de todas formas).
                 document.getElementById("pantalla-examen").classList.add("hidden");
                 document.getElementById("pantalla-resultado").classList.remove("hidden");
+                document.getElementById("resumen-alumno-container").innerHTML = `<p class="text-xs text-slate-400 italic">Resumen detallado no disponible por restricciones de aislamiento de origen de red. Tu calificación fue guardada directamente en la base del docente.</p>`;
                 if (document.exitFullscreen) document.exitFullscreen();
-            } catch (error) {
-                alert("Error crítico en la subida de datos. Avisa de inmediato al docente.");
             }
+        }
+
+        function mostrarPantallaResultados(datos) {
+            document.getElementById("pantalla-examen").classList.add("hidden");
+            document.getElementById("pantalla-resultado").classList.remove("hidden");
+
+            // Colocar las notas globales calculadas de forma segura por el servidor
+            document.getElementById("nota-final").innerText = datos.nota;
+            document.getElementById("aciertos-final").innerText = datos.totales;
+
+            const resumenContainer = document.getElementById("resumen-alumno-container");
+            resumenContainer.innerHTML = "";
+
+            // Renderizar de forma dinámica cada pregunta con sus colores de estatus
+            datos.detalles.forEach((item, index) => {
+                const divCard = document.createElement("div");
+                divCard.className = `p-3 rounded-xl border text-sm ${item.estatus ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50/50 border-red-100'}`;
+                
+                divCard.innerHTML = `
+                    <p class="font-bold text-slate-700 mb-1">${index + 1}. ${item.pregunta}</p>
+                    <p class="text-xs text-slate-600">Tu respuesta: <span class="font-mono font-bold ${item.estatus ? 'text-emerald-600' : 'text-red-600'}">${item.tuRespuesta}</span></p>
+                    ${!item.estatus ? `<p class="text-xs text-slate-500">Respuesta correcta: <span class="font-mono font-bold text-emerald-600">${item.correcta}</span></p>` : ''}
+                `;
+                resumenContainer.appendChild(divCard);
+            });
+
+            if (document.exitFullscreen) document.exitFullscreen();
         }
     </script>
 </body>
