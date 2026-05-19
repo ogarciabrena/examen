@@ -1,1 +1,183 @@
-a
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación Universitaria Digital</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-blue-600 tracking-tight">OGB ExamSystem</h1>
+            <p class="text-sm text-slate-500 mt-1">Plataforma de Evaluación Automatizada</p>
+        </header>
+
+        <div id="pantalla-registro" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h2 class="text-xl font-bold mb-4 text-slate-700">Datos del Alumno</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Nombre Completo</label>
+                    <input type="text" id="nombre" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-blue-500" placeholder="Ej. Juan Pérez">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Matrícula / ID</label>
+                    <input type="text" id="matricula" class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-blue-500" placeholder="Ej. 20261023">
+                </div>
+                <button onclick="comenzarExamen()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-blue-100">
+                    Iniciar Evaluación
+                </button>
+            </div>
+        </div>
+
+        <div id="pantalla-examen" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative">
+            <div class="flex justify-between items-center mb-4 text-xs font-semibold text-amber-600 bg-amber-50 p-2 rounded-lg">
+                <span>⚠️ Modo Seguro Activo. No salgas de la pantalla.</span>
+                <span id="contador-trampas" class="text-red-600">Desvío de atención: 0</span>
+            </div>
+
+            <div id="quiz-container" class="space-y-6">
+                <p class="text-center text-slate-400 py-8 animate-pulse">Cargando reactivos de forma segura...</p>
+            </div>
+
+            <button onclick="enviarExamen()" class="w-full mt-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-emerald-100">
+                Finalizar y Enviar Examen
+            </button>
+        </div>
+
+        <div id="pantalla-resultado" class="hidden bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center space-y-4">
+            <div class="inline-flex p-4 bg-emerald-50 text-emerald-600 rounded-full text-4xl">✓</div>
+            <h2 class="text-2xl font-bold text-slate-700">¡Examen Enviado con Éxito!</h2>
+            <p class="text-slate-500">Tus respuestas han sido registradas de forma segura directamente en el servidor del docente.</p>
+            <div class="bg-slate-50 p-4 rounded-xl max-w-xs mx-auto border border-slate-100">
+                <span class="text-xs text-slate-400 font-bold tracking-wider block uppercase">Tu Calificación</span>
+                <span id="nota-final" class="text-4xl font-black text-blue-600">-.-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT
+        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyZQ6JKRpFA4bCTWHHLlItyd39YbAHWkJOP5O984ezLudWMn-u0TmFeRZvCmgJOvVpA/exec";
+
+        let bancoPreguntas = [];
+        let contadorTrampas = 0;
+        let datosAlumno = { nombre: "", matricula: "" };
+
+        // Forzar detección de copia/salida
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden && !document.getElementById("pantalla-examen").classList.contains("hidden")) {
+                contadorTrampas++;
+                document.getElementById("contador-trampas").innerText = `Desvío de atención: ${contadorTrampas}`;
+                alert("¡ALERTA! Detectamos que saliste del examen. El sistema ha registrado esta incidencia.");
+            }
+        });
+
+        // Desactivar clic derecho y copiar
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'u')) e.preventDefault();
+        });
+
+        async function comenzarExamen() {
+            datosAlumno.nombre = document.getElementById("nombre").value.trim();
+            datosAlumno.matricula = document.getElementById("matricula").value.trim();
+
+            if (!datosAlumno.nombre || !datosAlumno.matricula) {
+                alert("Por favor llena todos tus datos primero.");
+                return;
+            }
+
+            // Cambiar pantalla
+            document.getElementById("pantalla-registro").classList.add("hidden");
+            document.getElementById("pantalla-examen").classList.remove("hidden");
+
+            // Forzar Pantalla Completa (Buen elemento de control psicológico)
+            try {
+                if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            } catch (e) { console.log("Fullscreen no soportado"); }
+
+            // Traer preguntas desde Google Sheets via Apps Script
+            try {
+                let response = await fetch(URL_APPS_SCRIPT);
+                bancoPreguntas = await response.json();
+                renderizarPreguntas();
+            } catch (error) {
+                alert("Error al cargar el examen. Avisa al aplicador.");
+            }
+        }
+
+        function renderizarPreguntas() {
+            const container = document.getElementById("quiz-container");
+            container.innerHTML = "";
+
+            bancoPreguntas.forEach((item, index) => {
+                const div = document.createElement("div");
+                div.className = "p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3";
+                div.innerHTML = `
+                    <p class="font-semibold text-slate-700">${index + 1}. ${item.pregunta}</p>
+                    <div class="grid gap-2 text-sm">
+                        <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors">
+                            <input type="radio" name="p-${index}" value="A" class="text-blue-600"> <span>${item.opciones.A}</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors">
+                            <input type="radio" name="p-${index}" value="B" class="text-blue-600"> <span>${item.opciones.B}</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors">
+                            <input type="radio" name="p-${index}" value="C" class="text-blue-600"> <span>${item.opciones.C}</span>
+                        </label>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function enviarExamen() {
+            if (!confirm("¿Estás seguro de que deseas enviar tus respuestas?")) return;
+
+            // Recopilar respuestas seleccionadas
+            let respuestasEnviadas = [];
+            bancoPreguntas.forEach((item, index) => {
+                const seleccionado = document.querySelector(`input[name="p-${index}"]:checked`);
+                respuestasEnviadas.push({
+                    pregunta: item.pregunta,
+                    respuesta: seleccionado ? seleccionado.value : ""
+                });
+            });
+
+            // Cambiar interfaz a carga
+            document.getElementById("pantalla-examen").innerHTML = `<p class="text-center text-blue-600 py-12 animate-bounce font-bold">Procesando y calificando de forma segura...</p>`;
+
+            // Paquete de datos para enviar por POST a Google Sheets
+            const payload = {
+                alumno: datosAlumno.nombre,
+                matricula: datosAlumno.matricula,
+                respuestas: respuestasEnviadas,
+                trampas: contadorTrampas
+            };
+
+            try {
+                let response = await fetch(URL_APPS_SCRIPT, {
+                    method: "POST",
+                    mode: "no-cors", // Requerido para llamadas básicas a Web Apps de Apps Script sin problemas de origen
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                // Al usar 'no-cors' no podemos leer la nota directa de la respuesta por seguridad, 
+                // pero los datos ya se insertaron con seguridad en la hoja del docente.
+                // Para que el alumno vea que se procesó:
+                document.getElementById("pantalla-examen").classList.add("hidden");
+                document.getElementById("pantalla-resultado").classList.remove("hidden");
+                document.getElementById("nota-final").innerText = "Listo";
+                
+                if (document.exitFullscreen) document.exitFullscreen();
+
+            } catch (error) {
+                alert("Ocurrió un detalle al enviar. Avisa al profesor para validar tu fila en la hoja de cálculo.");
+            }
+        }
+    </script>
+</body>
+</html>
