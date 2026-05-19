@@ -3,16 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OGB ExamSystem - Evaluación Digital</title>
+    <title>OGB ExamSystem - Evaluación Digital Blindada</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     
     <style>
-        /* Bloqueo absoluto de selección de texto por CSS en toda la app */
+        /* Deshabilitar por completo la selección de texto en celulares y computadoras */
         body {
             -webkit-user-select: none; /* Safari */
             -moz-user-select: none;    /* Firefox */
             -ms-user-select: none;     /* IE10+ */
             user-select: none;         /* Estándar */
+        }
+        /* Bloqueo visual radical si intentan imprimir la pantalla o guardarla como PDF */
+        @media print {
+            body { display: none !important; }
         }
     </style>
 </head>
@@ -43,7 +47,7 @@
 
         <div id="pantalla-examen" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative">
             <div class="flex justify-between items-center mb-4 text-xs font-semibold text-amber-600 bg-amber-50 p-2 rounded-lg">
-                <span>⚠️ Modo Seguro Activo. Prohibido salir de la pantalla.</span>
+                <span>⚠️ Entorno Seguro Activo (Se recomienda usar Celular/Tableta)</span>
                 <span id="contador-trampas" class="text-red-600 font-bold">Desvío de atención: 0</span>
             </div>
 
@@ -59,7 +63,7 @@
         <div id="pantalla-resultado" class="hidden bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center space-y-4">
             <div class="inline-flex p-4 bg-emerald-50 text-emerald-600 rounded-full text-4xl">✓</div>
             <h2 class="text-2xl font-bold text-slate-700">¡Examen Enviado con Éxito!</h2>
-            <p class="text-slate-500 text-sm">Tus respuestas han sido procesadas e inyectadas directamente en la base de datos del docente.</p>
+            <p class="text-slate-500 text-sm">Tus respuestas y telemetría de red han sido inyectadas en la base de datos del docente.</p>
             <div class="bg-slate-50 p-4 rounded-xl max-w-xs mx-auto border border-slate-100">
                 <span class="text-xs text-slate-400 font-bold tracking-wider block uppercase">Estado del Envío</span>
                 <span id="nota-final" class="text-3xl font-black text-emerald-600">REGISTRADO</span>
@@ -68,86 +72,90 @@
     </div>
 
     <script>
-        // ⚠️ REEMPLAZA ESTA CADENA POR LA URL REAL DE TU GOOGLE APPS SCRIPT
+        // URL Oficial de OGB Apps Script vinculada
         const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyZQ6JKRpFA4bCTWHHLlItyd39YbAHWkJOP5O984ezLudWMn-u0TmFeRZvCmgJOvVpA/exec";
 
         let bancoPreguntas = [];
         let contadorTrampas = 0;
-        let datosAlumno = { nombre: "", matricula: "" };
+        let datosAlumno = { nombre: "", matricula: "", metadata: "" };
 
-        // 🛡️ CONTROL DE ENTORNO ANTITRAMPA VIA JAVASCRIPT
-
-        // 1. Detectar si el alumno cambia de pestaña, minimiza o bloquea el cel
-        document.addEventListener("visibilitychange", () => {
+        // 🛡️ BITÁCORA ANTITRAMPA TELEMÉTRICA
+        function registrarFalta() {
             const examenActivo = !document.getElementById("pantalla-examen").classList.contains("hidden");
-            if (document.hidden && examenActivo) {
+            if (examenActivo) {
                 contadorTrampas++;
                 document.getElementById("contador-trampas").innerText = `Desvío de atención: ${contadorTrampas}`;
-                alert("¡ALERTA INDISPENSABLE!\nHas salido de la pantalla del examen. Esta incidencia ha sido reportada directamente en la bitácora del profesor.");
+                alert("¡ALERTA DE SEGURIDAD INTERNA!\nSe detectó salida de ventana, Alt+Tab o intento de captura de pantalla.\nEsta incidencia ha sido guardada en la hoja del profesor.");
             }
-        });
+        }
 
-        // 2. Bloquear clic derecho por completo (Menú contextual)
+        // Monitoreo dual: Cambio de pestaña (Celular) y pérdida de foco de ventana (Computadora)
+        document.addEventListener("visibilitychange", () => { if (document.hidden) registrarFalta(); });
+        window.onblur = function() { registrarFalta(); };
+
+        // Deshabilitar menús y atajos clave (Evita inspección básica)
         document.addEventListener('contextmenu', e => e.preventDefault());
-
-        // 3. Bloquear comandos de teclado comunes para copiar o inspeccionar código
         document.addEventListener('keydown', e => {
-            if (e.ctrlKey || e.metaKey) {
-                if (['c', 'v', 'u', 's', 'p', 'a'].includes(e.key.toLowerCase())) {
+            if (e.ctrlKey || e.metaKey || e.key === 'PrintScreen') {
+                if (['c', 'v', 'u', 's', 'p', 'a'].includes(e.key.toLowerCase()) || e.key === 'PrintScreen') {
                     e.preventDefault();
-                    alert("Función deshabilitada por motivos de seguridad en la evaluación.");
+                    registrarFalta();
                 }
             }
-            if (e.key === 'F12') {
-                e.preventDefault();
-            }
+            if (e.key === 'F12') e.preventDefault();
         });
 
-        // 4. Bloquear arrastre de textos (Evitar drag and drop hacia otra app en pantallas divididas)
+        // Bloqueo de arrastre de textos en pantallas divididas
         document.addEventListener('dragstart', e => e.preventDefault());
         document.addEventListener('drop', e => e.preventDefault());
 
-        // 🚀 LÓGICA DE LA APLICACIÓN
+        // Recolección silenciosa de IP y Hardware (Sin alertas intrusivas de GPS)
+        async function obtenerMetadatos() {
+            const agente = navigator.userAgent;
+            let ipPublica = "Bloqueada/Filtro DNS Local";
+            
+            try {
+                let res = await fetch('https://ipapi.co/json/');
+                let datosIp = await res.json();
+                ipPublica = `IP: ${datosIp.ip} (${datosIp.org})`;
+            } catch (e) { console.log("Captura de IP omitida por protección de red o timeout."); }
+
+            datosAlumno.metadata = `Disp: ${agente} | Red: ${ipPublica}`;
+        }
 
         async function comenzarExamen() {
             datosAlumno.nombre = document.getElementById("nombre").value.trim();
             datosAlumno.matricula = document.getElementById("matricula").value.trim();
 
             if (!datosAlumno.nombre || !datosAlumno.matricula) {
-                alert("Por favor, ingresa tu Nombre y Matrícula para validar el acceso.");
+                alert("Por favor introduce tu Nombre y Matrícula para continuar.");
                 return;
             }
 
-            // Transición visual de pantallas
+            await obtenerMetadatos();
+
             document.getElementById("pantalla-registro").classList.add("hidden");
             document.getElementById("pantalla-examen").classList.remove("hidden");
 
-            // Forzar Pantalla Completa como barrera psicológica adicional
+            // Elemento psicológico de bloqueo de interfaz
             try {
                 if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-            } catch (e) { 
-                console.log("Fullscreen no soportado por el navegador."); 
-            }
+            } catch (e) {}
 
-            // Petición GET para traer los reactivos desde Google Sheets
+            // Carga de reactivos limpios desde el Backend
             try {
                 let response = await fetch(URL_APPS_SCRIPT);
                 bancoPreguntas = await response.json();
                 renderizarPreguntas();
             } catch (error) {
-                alert("Error crítico de comunicación con el servidor de reactivos. Por favor avisa al profesor aplicador.");
+                alert("Fallo de comunicación con la API de reactivos. Contacta al aplicador.");
             }
         }
 
         function renderizarPreguntas() {
             const container = document.getElementById("quiz-container");
             container.innerHTML = "";
-
-            if (bancoPreguntas.length === 0 || bancoPreguntas.error) {
-                container.innerHTML = `<p class="text-center text-red-500 py-4 font-semibold">No hay preguntas disponibles en la base de datos.</p>`;
-                return;
-            }
-
+            
             bancoPreguntas.forEach((item, index) => {
                 const div = document.createElement("div");
                 div.className = "p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3";
@@ -155,13 +163,13 @@
                     <p class="font-semibold text-slate-700 select-none">${index + 1}. ${item.pregunta}</p>
                     <div class="grid gap-2 text-sm">
                         <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors select-none">
-                            <input type="radio" name="p-${index}" value="A" class="text-blue-600"> <span>${item.opciones.A}</span>
+                            <input type="radio" name="p-${index}" value="A"> <span>${item.opciones.A}</span>
                         </label>
                         <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors select-none">
-                            <input type="radio" name="p-${index}" value="B" class="text-blue-600"> <span>${item.opciones.B}</span>
+                            <input type="radio" name="p-${index}" value="B"> <span>${item.opciones.B}</span>
                         </label>
                         <label class="flex items-center gap-3 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors select-none">
-                            <input type="radio" name="p-${index}" value="C" class="text-blue-600"> <span>${item.opciones.C}</span>
+                            <input type="radio" name="p-${index}" value="C"> <span>${item.opciones.C}</span>
                         </label>
                     </div>
                 `;
@@ -170,9 +178,8 @@
         }
 
         async function enviarExamen() {
-            if (!confirm("¿Estás seguro de que deseas finalizar la prueba y enviar tus respuestas?")) return;
+            if (!confirm("¿Deseas dar por terminada la evaluación y enviar tus respuestas?")) return;
 
-            // Recopilar la selección del alumno
             let respuestasEnviadas = [];
             bancoPreguntas.forEach((item, index) => {
                 const seleccionado = document.querySelector(`input[name="p-${index}"]:checked`);
@@ -182,24 +189,17 @@
                 });
             });
 
-            // Pantalla de carga transitoria
-            document.getElementById("pantalla-examen").innerHTML = `
-                <div class="text-center py-12 space-y-3">
-                    <p class="text-blue-600 animate-bounce font-bold text-lg">Inyectando datos de forma segura...</p>
-                    <p class="text-xs text-slate-400">Por favor, no cierres el navegador web.</p>
-                </div>
-            `;
+            document.getElementById("pantalla-examen").innerHTML = `<p class="text-center text-blue-600 py-12 animate-bounce font-bold text-lg">Inyectando respuestas de forma segura...</p>`;
 
-            // Construcción del paquete JSON de subida
             const payload = {
                 alumno: datosAlumno.nombre,
                 matricula: datosAlumno.matricula,
                 respuestas: respuestasEnviadas,
-                trampas: contadorTrampas
+                trampas: contadorTrampas,
+                metadata: datosAlumno.metadata
             };
 
             try {
-                // Petición POST hacia Apps Script usando modo 'no-cors' para evitar restricciones de origen cruzado de Google
                 await fetch(URL_APPS_SCRIPT, {
                     method: "POST",
                     mode: "no-cors",
@@ -207,15 +207,11 @@
                     body: JSON.stringify(payload)
                 });
 
-                // Transición al acuse de éxito
                 document.getElementById("pantalla-examen").classList.add("hidden");
                 document.getElementById("pantalla-resultado").classList.remove("hidden");
-                
-                // Salir de pantalla completa elegantemente
                 if (document.exitFullscreen) document.exitFullscreen();
-
             } catch (error) {
-                alert("Error al procesar el envío final. Reporta el detalle de inmediato al aplicador.");
+                alert("Error crítico en la subida de datos. Avisa de inmediato al docente.");
             }
         }
     </script>
