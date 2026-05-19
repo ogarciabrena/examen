@@ -78,8 +78,7 @@
 
             <div class="space-y-4 pt-4 border-t border-slate-100">
                 <h3 class="text-lg font-bold text-slate-700 mb-2">Resumen de tu Evaluación:</h3>
-                <div id="resumen-alumno-container" class="space-y-3 max-h-96 overflow-y-auto pr-1">
-                    </div>
+                <div id="resumen-alumno-container" class="space-y-3 max-h-96 overflow-y-auto pr-1"></div>
             </div>
         </div>
     </div>
@@ -89,12 +88,16 @@
 
         let bancoPreguntas = [];
         let contadorTrampas = 0;
-        let datosAlumno = { nombre: "", matricula: "", metadata: "", horaInicio: "" };
+        let historialTrampas = []; // Aquí acumulamos las marcas de tiempo de las faltas
+        let datosAlumno = { nombre: "", matricula: "", metadata: "", horaInicio: "", horaFinal: "", logTrampas: "" };
 
         function registrarFalta() {
             const examenActivo = !document.getElementById("pantalla-examen").classList.contains("hidden");
             if (examenActivo) {
                 contadorTrampas++;
+                const marcaTiempoFalta = new Date().toLocaleTimeString('es-MX');
+                historialTrampas.push(`Falta a las ${marcaTiempoFalta}`); // Se añade el incidente al array
+                
                 document.getElementById("contador-trampas").innerText = `Desvío de atención: ${contadorTrampas}`;
                 alert("¡ALERTA DE SEGURIDAD INTERNA!\nSe detectó salida de ventana, Alt+Tab o intento de captura de pantalla.\nEsta incidencia ha sido guardada en la hoja del profesor.");
             }
@@ -134,9 +137,8 @@
                 return;
             }
 
-            // 🕒 CAPTURA DEL METADATO DE INICIO DE SESIÓN
-            const ahora = new Date();
-            datosAlumno.horaInicio = ahora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            // 🕒 CAPTURA HORA DE INICIO
+            datosAlumno.horaInicio = new Date().toLocaleTimeString('es-MX');
 
             await obtenerMetadatos();
 
@@ -183,6 +185,12 @@
         async function enviarExamen() {
             if (!confirm("¿Deseas dar por terminada la evaluación y enviar tus respuestas?")) return;
 
+            // 🕒 CAPTURA HORA FINAL
+            datosAlumno.horaFinal = new Date().toLocaleTimeString('es-MX');
+            
+            // 📝 CONSOLIDACIÓN DEL LOG DE TRAMPAS
+            datosAlumno.logTrampas = historialTrampas.length > 0 ? historialTrampas.join(" | ") : "Sin incidencias";
+
             let respuestasEnviadas = [];
             bancoPreguntas.forEach((item, index) => {
                 const seleccionado = document.querySelector(`input[name="p-${index}"]:checked`);
@@ -200,12 +208,12 @@
                 respuestas: respuestasEnviadas,
                 trampas: contadorTrampas,
                 metadata: datosAlumno.metadata,
-                horaInicio: datosAlumno.horaInicio // Pasamos el metadato de logueo al servidor
+                horaInicio: datosAlumno.horaInicio,
+                horaFinal: datosAlumno.horaFinal,
+                logTrampas: datosAlumno.logTrampas
             };
 
             try {
-                // Hacemos un fetch clásico. Como ocupamos leer la respuesta del servidor con el resumen,
-                // si te llega a dar error de CORS en la consola, el navegador igual procesa la respuesta en el flujo normal.
                 let response = await fetch(URL_APPS_SCRIPT, {
                     method: "POST",
                     body: JSON.stringify(payload)
@@ -220,11 +228,10 @@
                 }
 
             } catch (error) {
-                // Mitigación por si las políticas restrictivas de Google bloquean la lectura de la respuesta JSON directa:
-                // Avisamos que fue guardado (ya que el doPost se ejecuta de todas formas).
+                // Fallback por si hay restricciones estrictas de red leyendo respuestas JSON remotas
                 document.getElementById("pantalla-examen").classList.add("hidden");
                 document.getElementById("pantalla-resultado").classList.remove("hidden");
-                document.getElementById("resumen-alumno-container").innerHTML = `<p class="text-xs text-slate-400 italic">Resumen detallado no disponible por restricciones de aislamiento de origen de red. Tu calificación fue guardada directamente en la base del docente.</p>`;
+                document.getElementById("resumen-alumno-container").innerHTML = `<p class="text-xs text-slate-400 italic">Resumen detallado no disponible en este dispositivo. Tu calificación fue guardada directamente en la base de datos del docente.</p>`;
                 if (document.exitFullscreen) document.exitFullscreen();
             }
         }
@@ -233,14 +240,12 @@
             document.getElementById("pantalla-examen").classList.add("hidden");
             document.getElementById("pantalla-resultado").classList.remove("hidden");
 
-            // Colocar las notas globales calculadas de forma segura por el servidor
             document.getElementById("nota-final").innerText = datos.nota;
             document.getElementById("aciertos-final").innerText = datos.totales;
 
             const resumenContainer = document.getElementById("resumen-alumno-container");
             resumenContainer.innerHTML = "";
 
-            // Renderizar de forma dinámica cada pregunta con sus colores de estatus
             datos.detalles.forEach((item, index) => {
                 const divCard = document.createElement("div");
                 divCard.className = `p-3 rounded-xl border text-sm ${item.estatus ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50/50 border-red-100'}`;
