@@ -76,9 +76,7 @@
         let historialTrampas = [];
         let datosAlumno = { nombre: "", matricula: "", metadata: "", horaInicio: "", horaFinal: "", logTrampas: "", reingresoSospechoso: false };
         
-        // Banderas de control de estado para inmunidad en iPhone
         let temporizadorBlur = null;
-        let alumnoEscribiendo = false; 
 
         // CAPA PERSISTENTE ANTI-REFRESCO
         window.onload = function() {
@@ -95,14 +93,16 @@
         }
 
         // =============================================================================
-        // SISTEMA DE MONITOREO PERIMETRAL: ALERTA MEJORADA CON INMUNIDAD DE TECLADO
+        // SISTEMA DE MONITOREO PERIMETRAL: DIAGNÓSTICO DIRECTO DE ELEMENTO ACTIVO (V3.0)
         // =============================================================================
         function registrarFalta() {
             const examenActivo = !document.getElementById("pantalla-examen").classList.contains("hidden");
             if (!examenActivo) return;
 
-            // 🍏 PARCHE DE OGB: Si el alumno está editando una pregunta abierta, ignoramos por completo el evento blur
-            if (alumnoEscribiendo) {
+            // 🍏 PARCHE DE ACERO PARA IPHONE (CHROME/SAFARI):
+            // Si el elemento enfocado actualmente es cualquier INPUT o campo de texto,
+            // cancelamos inmediatamente la falta. Significa que el usuario está operando el teclado.
+            if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
                 if (temporizadorBlur) clearTimeout(temporizadorBlur);
                 return; 
             }
@@ -110,8 +110,8 @@
             if (temporizadorBlur) clearTimeout(temporizadorBlur);
 
             temporizadorBlur = setTimeout(() => {
-                // Doble validación en tiempo de ejecución
-                if (alumnoEscribiendo) return; 
+                // Re-verificación interna antes de penalizar
+                if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) return;
 
                 contadorTrampas++;
                 const marcaTiempoFalta = new Date().toLocaleTimeString('es-MX');
@@ -134,7 +134,12 @@
 
         // Monitoreo perimetral estricto
         document.addEventListener("visibilitychange", () => { 
-            if (document.hidden && !alumnoEscribiendo) {
+            // Si la app se minimiza o se cambia de pestaña, document.hidden es true.
+            // Pero si el alumno solo está en inputs, el activeElement lo protegerá de micro-blurs.
+            if (document.hidden) {
+                if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
+                    return; // Protegido si el teclado seguía arriba
+                }
                 registrarFalta(); 
             } else {
                 if (temporizadorBlur) clearTimeout(temporizadorBlur);
@@ -215,8 +220,6 @@
                 if (item.tipo === "ABIERTA") {
                     htmlRespuestas = `
                         <input type="text" id="abierta-${index}" 
-                            onfocus="alumnoEscribiendo = true; if(temporizadorBlur) clearTimeout(temporizadorBlur);" 
-                            onblur="setTimeout(() => { alumnoEscribiendo = false; }, 300);"
                             class="w-full px-4 py-2 bg-white rounded-lg border border-slate-200 focus:outline-blue-500 font-mono text-sm uppercase" 
                             placeholder="Escribe tu respuesta aquí...">
                     `;
