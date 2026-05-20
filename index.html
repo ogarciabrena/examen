@@ -68,7 +68,7 @@
     </div>
 
     <script>
-        // 🚨 CONFIGURACIÓN: REEMPLAZA ESTA DIRECCIÓN POR TU URL DE GOOGLE APPS SCRIPT REAL
+        // 🚨 ENLACE CONFIGURADO AL GOOGLE APPS SCRIPT DE OGB
         const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyZQ6JKRpFA4bCTWHHLlItyd39YbAHWkJOP5O984ezLudWMn-u0TmFeRZvCmgJOvVpA/exec";
 
         let bancoPreguntas = [];
@@ -76,10 +76,11 @@
         let historialTrampas = [];
         let datosAlumno = { nombre: "", matricula: "", metadata: "", horaInicio: "", horaFinal: "", logTrampas: "", reingresoSospechoso: false };
         
-        // Temporizador de control para el antirebote de trampas (Parche Chrome iOS)
+        // Banderas de control de estado para inmunidad en iPhone
         let temporizadorBlur = null;
+        let alumnoEscribiendo = false; 
 
-        // CAPA PERSISTENTE ANTI-REFRESCO: Analizar estado al iniciar la ventana
+        // CAPA PERSISTENTE ANTI-REFRESCO
         window.onload = function() {
             if (localStorage.getItem("ogb_examen_activo") === "true") {
                 datosAlumno.reingresoSospechoso = true;
@@ -94,19 +95,24 @@
         }
 
         // =============================================================================
-        // SISTEMA DE MONITOREO PERIMETRAL CON FILTRO INTELIGENTE PARA EL TECLADO DE IOS
+        // SISTEMA DE MONITOREO PERIMETRAL: ALERTA MEJORADA CON INMUNIDAD DE TECLADO
         // =============================================================================
         function registrarFalta() {
             const examenActivo = !document.getElementById("pantalla-examen").classList.contains("hidden");
             if (!examenActivo) return;
 
-            // Limpiamos cualquier temporizador previo para evitar acumulaciones
+            // 🍏 PARCHE DE OGB: Si el alumno está editando una pregunta abierta, ignoramos por completo el evento blur
+            if (alumnoEscribiendo) {
+                if (temporizadorBlur) clearTimeout(temporizadorBlur);
+                return; 
+            }
+
             if (temporizadorBlur) clearTimeout(temporizadorBlur);
 
-            // 🍏 PARCHE DEFINITIVO PARA CHROME EN IPHONE:
-            // Retrasamos la alerta 350ms. Si el usuario solo cerró el teclado, el evento 'focus'
-            // se activará inmediatamente y cancelará este temporizador antes de poner la falta.
             temporizadorBlur = setTimeout(() => {
+                // Doble validación en tiempo de ejecución
+                if (alumnoEscribiendo) return; 
+
                 contadorTrampas++;
                 const marcaTiempoFalta = new Date().toLocaleTimeString('es-MX');
                 historialTrampas.push(`Falta a las ${marcaTiempoFalta}`);
@@ -116,10 +122,9 @@
                 
                 document.getElementById("contador-trampas").innerText = `Desvío de atención: ${contadorTrampas}`;
                 alert("¡ALERTA DE SEGURIDAD OGB!\nSe detectó desvío del entorno seguro o salida de la pestaña.");
-            }, 350); 
+            }, 400); 
         }
 
-        // Si el foco regresa antes de los 350ms (como pasa al ocultar el teclado), cancelamos la falta
         window.onfocus = function() {
             if (temporizadorBlur) {
                 clearTimeout(temporizadorBlur);
@@ -127,9 +132,9 @@
             }
         };
 
-        // Eventos de control perimetral anti-trampas
+        // Monitoreo perimetral estricto
         document.addEventListener("visibilitychange", () => { 
-            if (document.hidden) {
+            if (document.hidden && !alumnoEscribiendo) {
                 registrarFalta(); 
             } else {
                 if (temporizadorBlur) clearTimeout(temporizadorBlur);
@@ -137,7 +142,7 @@
         });
         
         window.onblur = function() { registrarFalta(); };
-        document.addEventListener('contextmenu', e => e.preventDefault()); // Bloqueo click derecho
+        document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
             if (e.ctrlKey || e.metaKey || ['F12', 'PrintScreen'].includes(e.key)) { e.preventDefault(); registrarFalta(); }
         });
@@ -209,7 +214,11 @@
                 let htmlRespuestas = "";
                 if (item.tipo === "ABIERTA") {
                     htmlRespuestas = `
-                        <input type="text" id="abierta-${index}" class="w-full px-4 py-2 bg-white rounded-lg border border-slate-200 focus:outline-blue-500 font-mono text-sm uppercase" placeholder="Escribe tu respuesta aquí...">
+                        <input type="text" id="abierta-${index}" 
+                            onfocus="alumnoEscribiendo = true; if(temporizadorBlur) clearTimeout(temporizadorBlur);" 
+                            onblur="setTimeout(() => { alumnoEscribiendo = false; }, 300);"
+                            class="w-full px-4 py-2 bg-white rounded-lg border border-slate-200 focus:outline-blue-500 font-mono text-sm uppercase" 
+                            placeholder="Escribe tu respuesta aquí...">
                     `;
                 } else {
                     htmlRespuestas = `
@@ -232,7 +241,7 @@
             });
         }
 
-        // PROCESAMIENTO Y ENVÍO CON MÁXIMA TOLERANCIA DE RESPUESTA PARA EMULADORES IOS
+        // PROCESAMIENTO Y ENVÍO XMLHTTPREQUEST ULTRA-RESILIENTE
         async function enviarExamen() {
             if (!confirm("¿Deseas enviar tus respuestas definitivas?")) return;
 
